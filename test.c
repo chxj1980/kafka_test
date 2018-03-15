@@ -35,12 +35,15 @@ void *work(void *p)
         elog(ERROR, "rd_kafka_consume_start failed: %s", rd_kafka_err2str(err));
     }
 
+    rd_kafka_message_t *msgs[1024];
     while (1)
     {
         rd_kafka_poll(kafka, 0);
-        rd_kafka_message_t *msg = rd_kafka_consume(topic, i, 1000);
-        if (msg)
+        ssize_t count = rd_kafka_consume_batch(topic, i, 1000, msgs, 1024);
+        if (count <= 0) break;
+        for (ssize_t j = 0; j < count; j++)
         {
+            rd_kafka_message_t *msg = rd_kafka_consume(topic, i, 1000);
             rd_kafka_resp_err_t err = msg->err;
             size_t len = msg->len;
             rd_kafka_message_destroy(msg);
@@ -57,10 +60,6 @@ void *work(void *p)
             {
                 elog(ERROR, "kafka consumer error: %s", rd_kafka_err2str(msg->err));
             }
-        }
-        else
-        {
-            continue;
         }
     }
     __sync_fetch_and_add(&active_threads, -1);
