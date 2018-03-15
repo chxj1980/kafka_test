@@ -5,15 +5,28 @@
 #include <unistd.h>
 #define elog(x, fmt, ...) do { printf(fmt, __VA_ARGS__); exit(0);} while(0)
 #define ERROR 1
+char errstr[512];
 
-static rd_kafka_t *kafka;
-static rd_kafka_topic_t *topic;
 static size_t message_count;
 static size_t bytes_count;
 static int active_threads;
-
+char* tp;
+char* broker;
 void *work(void *p)
 {
+    rd_kafka_conf_t *conf = rd_kafka_conf_new();
+    rd_kafka_conf_set(conf, "queued.min.messages", "1000000", NULL, 0);
+    rd_kafka_t *kafka = rd_kafka_new(RD_KAFKA_CONSUMER, conf, errstr, sizeof(errstr));
+    if (kafka == NULL)
+    {
+        elog(ERROR, "rd_kafka_new failed: %s", errstr);
+    }
+
+    if (rd_kafka_brokers_add(kafka, broker) == 0)
+    {
+        elog(ERROR, "rd_kafka_brokers_add failed: %s", broker);
+    }
+    rd_kafka_topic_t *topic = rd_kafka_topic_new(kafka, tp, NULL);
     __sync_fetch_and_add(&active_threads, 1);
     size_t i = (size_t)p;
     if (rd_kafka_consume_start(topic, i, RD_KAFKA_OFFSET_BEGINNING) == -1)
@@ -59,26 +72,26 @@ int main(int argc, char **argv)
 {
     if (argc < 3)
     {
-        printf("%s broker topic", argv[0]);
+        printf("%s broker topic\n", argv[0]);
+	return 0;
     }
-    char errstr[512];
     rd_kafka_conf_t *conf = rd_kafka_conf_new();
     rd_kafka_conf_set(conf, "queued.min.messages", "1000000", NULL, 0);
-    kafka = rd_kafka_new(RD_KAFKA_CONSUMER, conf, errstr, sizeof(errstr));
+    rd_kafka_t *kafka = rd_kafka_new(RD_KAFKA_CONSUMER, conf, errstr, sizeof(errstr));
     if (kafka == NULL)
     {
         elog(ERROR, "rd_kafka_new failed: %s", errstr);
     }
 
-    char *broker = argv[1];
-    char *tp = argv[2];
+    broker = argv[1];
+    tp = argv[2];
     if (rd_kafka_brokers_add(kafka, broker) == 0)
     {
         elog(ERROR, "rd_kafka_brokers_add failed: %s", broker);
     }
 
-    topic = rd_kafka_topic_new(kafka, tp, NULL);
 
+    rd_kafka_topic_t *topic = rd_kafka_topic_new(kafka, tp, NULL);
     const rd_kafka_metadata_t* meta;
     if (RD_KAFKA_RESP_ERR_NO_ERROR != rd_kafka_metadata(kafka, 0, topic, &meta, 1000))
     {
