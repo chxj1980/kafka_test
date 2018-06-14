@@ -43,7 +43,7 @@ void *work(void *p)
         if (count <= 0) break;
         for (ssize_t j = 0; j < count; j++)
         {
-            rd_kafka_message_t *msg = rd_kafka_consume(topic, i, 1000);
+            rd_kafka_message_t *msg = msgs[j];
             rd_kafka_resp_err_t err = msg->err;
             size_t len = msg->len;
             rd_kafka_message_destroy(msg);
