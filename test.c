@@ -66,6 +66,7 @@ static int work(int partition)
     {
         rd_kafka_consume_callback(topic, partition, 1000, msg_consume, 0);
     }
+    printf("consumed %lu messages %lu bytes from partition %d\n", message_count, bytes_count, partition);
     exit(0);
 }
 
@@ -107,6 +108,7 @@ int main(int argc, char **argv)
     broker = argv[1];
     tp = argv[2];
     int count = get_partitions();
+    printf("consuming %d partitions\n", count);
     for (int i = 0; i < count; i++)
     {
         partitions[i] = work(i);
